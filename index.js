@@ -1,20 +1,13 @@
-// index.js
+// index.js [DEBUG VERSION 1.4]
 const extensionName = "StatusTest";
 
-/**
- * 在指定消息下方渲染状态栏
- */
 function renderStatusBar() {
+    // 渲染状态栏的逻辑保持不变
     setTimeout(() => {
         const chat = document.getElementById('chat');
         if (!chat) return;
-
-        // 获取最新的一条消息
         const lastMessage = $(chat).find('.mes').last();
-        
-        if (lastMessage.length === 0 || lastMessage.find('.st-test-status-bar').length > 0) {
-            return;
-        }
+        if (lastMessage.length === 0 || lastMessage.find('.st-test-status-bar').length > 0) return;
 
         const statusBarHtml = `
             <div class="st-test-status-bar">
@@ -23,83 +16,77 @@ function renderStatusBar() {
                 <span><i class="fa-solid fa-shield-halved st-status-icon" style="color: #6bcef5;"></i> 状态: 正常</span>
             </div>
         `;
-
         lastMessage.find('.mes_text').after(statusBarHtml);
-        console.log(`[${extensionName}] 状态栏已渲染`);
     }, 100);
 }
 
-/**
- * 终极注入：不靠 ID，靠兄弟节点定位
- */
 function injectWandButton() {
     const menuItemId = 'st-status-bar-trigger';
 
-    // 辅助函数：寻找可靠的锚点
-    const findAnchor = () => {
-        // 尝试找到“生成图片”或者“关闭前端渲染”这些肯定存在的按钮
-        // 通过文本内容来找
-        const anchors = $("div.extension_menu_item_text:contains('生成图片'), div.extension_menu_item_text:contains('Generate Image'), div.extension_menu_item_text:contains('关闭前端渲染')");
-        return anchors.first().parent(); // 返回找到的第一个按钮的父元素 (也就是那个 <li> 或 <div>)
+    const addBtn = (container, name) => {
+        if (container.find('#' + menuItemId).length > 0) return;
+
+        console.log(`[${extensionName}] 正在尝试注入到: ${name}`, container);
+        
+        const btn = `
+            <div id="${menuItemId}" class="list-group-item extension_menu_item" style="cursor:pointer; display:flex; align-items:center; gap:10px; background: rgba(0, 100, 0, 0.2); border: 1px solid lime;">
+                <span class="extension_menu_item_icon fa-solid fa-bug" style="color: lime;"></span>
+                <span class="extension_menu_item_text">测试状态栏 (Debug)</span>
+            </div>
+        `;
+        
+        container.append(btn);
+        
+        container.find('#' + menuItemId).on('click', (e) => {
+            e.stopPropagation(); e.preventDefault();
+            renderStatusBar();
+            // 尝试关闭菜单
+            container.closest('.drawer-content').hide();
+            $('#extensions_menu').hide();
+        });
+        
+        toastr.success(`按钮已注入到 ${name}!`, "Debug Success");
     };
 
-    const tryAddButton = () => {
-        // 1. 如果按钮已经存在，就别加了
-        if ($('#' + menuItemId).length > 0) return;
-
-        // 2. 寻找锚点
-        const anchor = findAnchor();
-
-        if (anchor.length > 0) {
-            // 3. 找到了锚点，插在它所在的列表最后面
-            const container = anchor.parent(); // 获取列表容器 (通常是 .list-group)
-            
-            const menuItemHtml = `
-                <div id="${menuItemId}" class="list-group-item extension_menu_item" style="cursor:pointer; display:flex; align-items:center; gap:10px;">
-                    <span class="extension_menu_item_icon fa-solid fa-gauge-high"></span>
-                    <span class="extension_menu_item_text">生成测试状态栏</span>
-                </div>
-            `;
-            
-            container.append(menuItemHtml);
-
-            // 4. 绑定事件
-            container.find('#' + menuItemId).on('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                toastr.info("正在手动渲染状态栏...", "Status Test");
-                renderStatusBar();
-                
-                // 尝试关闭所有可能的菜单
-                $('.list-group').parent().hide();
-            });
-            
-            console.log(`[${extensionName}] 按钮通过锚点注入成功！`);
-        }
-    };
-
-    // 监听魔法棒点击，疯狂尝试注入
+    // 核心逻辑：监听点击，并在点击后的一段时间内疯狂搜索 DOM
     $(document).on('click', '#extensions_button', () => {
+        console.log(`[${extensionName}] 魔法棒被点击！开始搜索目标...`);
+        
         let attempts = 0;
+        const maxAttempts = 20; // 尝试20次 (约2秒)
+        
         const interval = setInterval(() => {
-            tryAddButton();
             attempts++;
-            if (attempts > 20 || $('#' + menuItemId).length > 0) {
-                clearInterval(interval);
+            
+            // 1. 尝试标准选择器
+            const standardList = $('#extensions_menu .list-group');
+            if (standardList.length) addBtn(standardList, "Standard List");
+
+            // 2. 尝试寻找包含“生成图片”的列表
+            const genImgBtn = $("div:contains('生成图片'), div:contains('Generate Image'), div:contains('关闭前端渲染')").last();
+            if (genImgBtn.length) {
+                const parentList = genImgBtn.closest('.list-group');
+                if (parentList.length) addBtn(parentList, "Sibling List (via Text)");
             }
-        }, 100); // 每100ms尝试一次，共2秒
+
+            // 3. 暴力搜索所有可见的 list-group
+            $('.list-group:visible').each(function() {
+                addBtn($(this), "Visible List-Group");
+            });
+
+            if (attempts >= maxAttempts) clearInterval(interval);
+        }, 100);
     });
 }
 
-// 初始化
 jQuery(document).ready(function () {
-    console.log(`[${extensionName}] 加载成功 v1.2 (Anchor Mode)`);
-
+    console.log(`[${extensionName}] Debug 版本加载完毕`);
     injectWandButton();
-
+    
+    // 自动挂载消息事件
     if (window.eventSource) {
-        window.eventSource.on(window.event_types.MESSAGE_RENDERED, () => renderStatusBar());
-        window.eventSource.on(window.event_types.GENERATION_ENDED, () => renderStatusBar());
-        window.eventSource.on(window.event_types.chat_id_changed, () => renderStatusBar());
+        window.eventSource.on(window.event_types.MESSAGE_RENDERED, renderStatusBar);
+        window.eventSource.on(window.event_types.GENERATION_ENDED, renderStatusBar);
+        window.eventSource.on(window.event_types.chat_id_changed, renderStatusBar);
     }
 });

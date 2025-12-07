@@ -2,7 +2,7 @@
     "display_name": "状态栏测试 (Status Test)",
     "description": "在最新消息下方显示测试状态栏，并集成到魔法棒菜单。",
     "author": "User",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "loading_order": 100,
     "js": "index.js",
     "css": "style.css"
