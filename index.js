@@ -5,7 +5,6 @@ const extensionName = "StatusTest";
  * 在指定消息下方渲染状态栏
  */
 function renderStatusBar() {
-    // 稍微延迟以确保DOM已更新
     setTimeout(() => {
         const chat = document.getElementById('chat');
         if (!chat) return;
@@ -13,12 +12,10 @@ function renderStatusBar() {
         // 获取最新的一条消息
         const lastMessage = $(chat).find('.mes').last();
         
-        // 检查是否存在消息，以及是否已经插入过状态栏，避免重复
         if (lastMessage.length === 0 || lastMessage.find('.st-test-status-bar').length > 0) {
             return;
         }
 
-        // 定义状态栏 HTML (你可以随意修改这里的数值)
         const statusBarHtml = `
             <div class="st-test-status-bar">
                 <span><i class="fa-solid fa-heart st-status-icon"></i> HP: 100/100</span>
@@ -27,66 +24,93 @@ function renderStatusBar() {
             </div>
         `;
 
-        // 将状态栏插入到消息文本 (.mes_text) 后面
         lastMessage.find('.mes_text').after(statusBarHtml);
         console.log(`[${extensionName}] 状态栏已渲染`);
     }, 100);
 }
 
 /**
- * 将按钮注入到魔法棒菜单 (Extensions Menu)
+ * 强力注入：查找任何包含 "list-group" 的菜单容器
  */
 function injectWandButton() {
     const menuItemId = 'st-status-bar-trigger';
-    
-    // 监听魔法棒按钮的点击事件
-    $(document).on('click', '#extensions_button', () => {
-        // 给予菜单弹出的缓冲时间
-        setTimeout(() => {
-            // 尝试查找菜单列表容器
-            const menuList = $('#extensions_menu .list-group, #qr-extensions-menu .list-group').first();
-            
-            // 如果找到了菜单且我们的按钮还没加进去
-            if (menuList.length > 0 && $('#' + menuItemId).length === 0) {
-                
-                // 定义菜单项 HTML
+
+    // 辅助函数：尝试添加按钮
+    const tryAddButton = () => {
+        // 查找所有可能的菜单容器
+        // #extensions_menu: 旧版/标准版
+        // #qr-extensions-menu: 某些移动端优化版或主题
+        // .list-group: 最通用的类名
+        const potentialMenus = $('#extensions_menu .list-group, #qr-extensions-menu .list-group, #extensions_menu');
+
+        potentialMenus.each(function() {
+            const menu = $(this);
+            // 避免重复添加
+            if (menu.find('#' + menuItemId).length === 0) {
+                // 定义按钮 HTML
                 const menuItemHtml = `
-                    <div id="${menuItemId}" class="list-group-item extension_menu_item">
-                        <div class="extension_menu_item_icon fa-solid fa-gauge-high"></div>
-                        <div class="extension_menu_item_text">生成测试状态栏</div>
+                    <div id="${menuItemId}" class="list-group-item extension_menu_item" style="cursor:pointer; display:flex; align-items:center; gap:10px;">
+                        <span class="extension_menu_item_icon fa-solid fa-gauge-high"></span>
+                        <span class="extension_menu_item_text">生成测试状态栏</span>
                     </div>
                 `;
                 
-                // 添加到菜单末尾
-                menuList.append(menuItemHtml);
+                // 插入到菜单末尾
+                menu.append(menuItemHtml);
                 
                 // 绑定点击事件
-                $('#' + menuItemId).on('click', (e) => {
-                    e.stopPropagation(); // 防止冒泡
+                menu.find('#' + menuItemId).on('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault(); // 阻止默认行为
                     toastr.info("正在手动渲染状态栏...", "Status Test");
                     renderStatusBar();
-                    // 点击后自动关闭菜单
-                    $('#extensions_menu').hide(); 
+                    
+                    // 关闭菜单
+                    $('#extensions_menu').hide();
+                    $('#qr-extensions-menu').hide();
                 });
+                
+                console.log(`[${extensionName}] 按钮已注入到`, menu);
             }
-        }, 100);
+        });
+    };
+
+    // 策略 1: 页面加载时尝试注入
+    setTimeout(tryAddButton, 1000);
+
+    // 策略 2: 监听魔法棒按钮点击，再次尝试注入（防止菜单是动态生成的）
+    $(document).on('click', '#extensions_button', () => {
+        setTimeout(tryAddButton, 50);  // 快速尝试
+        setTimeout(tryAddButton, 200); // 慢速重试
     });
+    
+    // 策略 3: 监听 DOM 变化 (MutationObserver) - 最强力的保障
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            // 如果有节点被添加到页面上
+            if (mutation.addedNodes.length) {
+                // 检查是否是扩展菜单被打开了
+                const target = $(mutation.target);
+                if (target.is('#extensions_menu') || target.find('#extensions_menu').length > 0) {
+                    tryAddButton();
+                }
+            }
+        }
+    });
+    
+    // 开始观察 body 变化
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // 初始化
 jQuery(document).ready(function () {
-    console.log(`[${extensionName}] 加载成功`);
+    console.log(`[${extensionName}] 加载成功 v1.1`);
 
-    // 1. 注入魔法棒按钮
     injectWandButton();
 
-    // 2. 监听消息渲染事件，自动添加状态栏
-    // 监听消息已渲染事件
     if (window.eventSource) {
         window.eventSource.on(window.event_types.MESSAGE_RENDERED, () => renderStatusBar());
-        // 监听生成结束事件 (流式传输结束)
         window.eventSource.on(window.event_types.GENERATION_ENDED, () => renderStatusBar());
-        // 监听群组/聊天切换
         window.eventSource.on(window.event_types.chat_id_changed, () => renderStatusBar());
     }
 });
