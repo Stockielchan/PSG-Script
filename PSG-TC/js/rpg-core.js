@@ -51,16 +51,25 @@ const RPG = {
         isTavern: false,
         
         init: () => {
-            // 简单检测：如果 parent 存在且不等于 self，且 parent 有 TavernHelper 或 jQuery 等特征
-            // 这里我们用更直接的方式：看能不能访问到 parent 的特定对象
+            // 检测逻辑优化：
+            // 1. Iframe 模式：检查 window.parent.TavernHelper
+            // 2. 直接注入模式 (Code Block 注入)：检查 window.TavernHelper (自己就在酒馆上下文里)
+            // 3. Extension 模式：检查 window.parent.TavernHelper
             try {
-                if (window.parent && window.parent !== window) {
-                    // 尝试访问一个酒馆特有的对象，比如 SillyTavern 的上下文变量
-                    // 但为了安全，我们也可以通过 extension 的 index.js 注入一个标志位
-                    // 或者更简单的：如果能拿到 window.parent.TavernHelper 就认为是
+                // Case A: 直接运行在酒馆页面内 (Direct Injection)
+                if (window.TavernHelper || document.getElementById('app')) { // #app 是酒馆根节点ID
+                    RPG.TavernBridge.isTavern = true;
+                    // 如果是直接注入，我们需要一个指向自身的引用，为了兼容下面的代码
+                    if (!window.parent.TavernHelper && window.TavernHelper) {
+                        window.parent = window; // Hack: 让后续 window.parent.TavernHelper 调用生效
+                    }
+                    console.log("[RPG] Detected SillyTavern Environment (Direct/Inject)");
+                }
+                // Case B: Iframe 嵌入
+                else if (window.parent && window.parent !== window) {
                     if (window.parent.TavernHelper) {
                         RPG.TavernBridge.isTavern = true;
-                        console.log("[RPG] Detected SillyTavern Environment!");
+                        console.log("[RPG] Detected SillyTavern Environment (Iframe)");
                     }
                 }
             } catch(e) {

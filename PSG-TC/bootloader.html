@@ -40,8 +40,9 @@
         LOG("CSS Loaded.");
 
         // 2. 获取 HTML 结构
-        // 注意：同层主.html 包含完整的 html/head/body 标签，我们需要提取 body 内部的内容
-        const htmlRes = await fetch(`${REPO_ROOT}/同层主.html`);
+        // 注意：index.html 包含完整的 html/head/body 标签，我们需要提取 body 内部的内容
+        // GitHub 上您上传的是 index.html
+        const htmlRes = await fetch(`${REPO_ROOT}/index.html`);
         if (!htmlRes.ok) throw new Error(`Failed to load HTML: ${htmlRes.status}`);
         const htmlText = await htmlRes.text();
         
