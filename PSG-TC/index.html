@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<!-- 
+=============================================================================
+   SillyTavern Frontend Extension (ST-FE) - 同层交互卡 (Modularized)
+   Project: Panty & Stocking Mobile Style
+   Version: 2.0.0 (Modular Refactor)
+   
+   [ Versioning Rules: A.B.C ]
+   A (Major): Architecture change
+   B (Minor): Feature update
+   C (Patch): Fixes
+   
+   IMPORTANT: Always update version number when modifying this file!
+=============================================================================
+-->
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Panty & Stocking Mobile (Full Fixed)</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;800&family=Exo+2:wght@600;700;800&family=Noto+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- 引入外部样式表 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- SVG Icons Definition -->
+    <svg style="display: none;">
+        <defs>
+            <symbol id="icon-loc" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></symbol>
+            <symbol id="icon-time" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" fill="currentColor"/></symbol>
+            <symbol id="icon-inv" viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-2 .89-2 2v11c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zM10 4h4v2h-4V4zm10 15H4V8h16v11z" fill="currentColor"/></symbol>
+            <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="currentColor"/></symbol>
+            <symbol id="icon-send" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></symbol>
+            <symbol id="icon-fullscreen" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></symbol>
+            <symbol id="icon-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+            <symbol id="icon-clean" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+            <symbol id="icon-reset" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+            <symbol id="icon-story" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></symbol>
+            <symbol id="icon-jump" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></symbol>
+            <symbol id="icon-regen" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></symbol>
+            <symbol id="icon-save-mgr" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+            <symbol id="icon-newchat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="12" y1="9" x2="12" y2="15"/></symbol>
+            <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+            <symbol id="icon-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></symbol>
+            <symbol id="icon-close" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+            <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+            <symbol id="icon-minimize" viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></symbol>
+            <symbol id="icon-prev" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></symbol>
+            <symbol id="icon-next" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></symbol>
+            <symbol id="icon-list" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0 4h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></symbol>
+            <symbol id="icon-mode-seq" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/></symbol>
+            <symbol id="icon-mode-loop" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/><text x="12" y="15" font-size="8" text-anchor="middle" fill="currentColor" font-weight="bold">1</text></symbol>
+            <symbol id="icon-mode-random" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></symbol>
+            <symbol id="icon-delete" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+            <symbol id="icon-edit" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></symbol>
+            <symbol id="icon-import" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+            <symbol id="icon-save-slot" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+            <symbol id="icon-handle" viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></symbol>
+            <symbol id="icon-spin" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg></symbol>
+            <symbol id="icon-star-fill" viewBox="0 0 24 24"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9Z"/></symbol>
+        </defs>
+    </svg>
+
+    <canvas id="dynamic-bg"></canvas>
+
+    <!-- 音乐播放器 -->
+    <div id="musicWidget" class="music-widget expanded" style="display:none;">
+        <img id="floatIcon" src="https://stockielchan.github.io/stocking-music/musicmenu.jpg" alt="Music">
+        <div class="player-inner">
+            <button class="player-menu-btn" onclick="togglePlayerSettings()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+            </button>
+            <div id="playerSettings" class="player-settings-menu">
+                <div class="ps-item active" onclick="musicPlayer.toggleTranslation()">
+                    <span>歌词翻译</span>
+                    <div class="ps-toggle" id="toggle-trans"></div>
+                </div>
+                <div class="ps-item active" onclick="musicPlayer.toggleVisualizer()">
+                    <span>音频可视化</span>
+                    <div class="ps-toggle" id="toggle-vis"></div>
+                </div>
+            </div>
+
+            <div class="player-header-btns">
+                <button class="ph-btn" onclick="toggleMusicMinimize()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 13H5v-2h14v2z"/></svg>
+                </button>
+                <button class="ph-btn close" onclick="closeMusicPlayer()">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="visual-area" id="visualArea">
+                <canvas id="visualizer"></canvas>
+                <div class="disc-wrapper" id="discWrapper"></div>
+                <div class="lyric-wrapper" id="lyricWrapper"><ul class="lyric-list" id="lyricList"></ul></div>
+            </div>
+            <div class="song-info">
+                <div class="song-title" id="songTitle">Loading...</div>
+                <div class="song-status" id="songStatus">P&S Radio</div>
+            </div>
+            <div class="progress-area">
+                <span id="currTime">0:00</span>
+                <input type="range" class="progress-bar" id="progressBar" value="0" min="0" max="100">
+                <span id="totalTime">0:00</span>
+            </div>
+            <div class="controls">
+                <button class="m-btn" id="modeBtn" onclick="musicPlayer.toggleMode()"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v6z"/></svg></button>
+                <button class="m-btn" onclick="musicPlayer.prev()"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+                <button class="m-btn btn-play" id="playPauseBtn" onclick="musicPlayer.togglePlay()"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+                <button class="m-btn" onclick="musicPlayer.next()"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+                <button class="m-btn" onclick="musicPlayer.togglePlaylist(event)"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg></button>
+            </div>
+        </div>
+        <div class="playlist-panel" id="playlistPanel"></div>
+    </div>
+    <audio id="bgmAudio" crossorigin="anonymous" preload="none" style="display:none;"></audio>
+
+    <!-- 极简 HUD -->
+    <div class="game-ui-container" id="game-ui" onclick="showToggleBtn()">
+        <div class="game-header">
+            <details>
+                <summary class="loc-pill">
+                    <svg class="g-svg" style="width:20px;height:20px;color:var(--color-stocking);"><use href="#icon-loc"></use></svg>
+                    <span id="ui-loc-short">堕天城</span>
+                </summary>
+                <div class="popup-box popup-loc">
+                    <div class="popup-label">FULL LOCATION</div>
+                    <div id="ui-loc-full">教堂塔楼</div>
+                </div>
+            </details>
+
+            <details>
+                <summary class="time-pill">
+                    <svg class="g-svg" style="width:16px;height:16px;opacity:0.7;"><use href="#icon-time"></use></svg>
+                    <span id="ui-time-short">08:00</span>
+                </summary>
+                <div class="popup-box popup-time">
+                    <div class="popup-label">FULL TIME</div>
+                    <div id="ui-time-full" style="color:var(--SmartThemeQuoteColor);font-weight:bold;">2024/01/01 08:00</div>
+                </div>
+            </details>
+        </div>
+
+        <div class="game-stats-row">
+            <div class="game-stat-item stat-danten">
+                <div class="game-stat-val" id="val-danten">100</div>
+                <div class="game-stat-label">Danten</div>
+            </div>
+            <div class="game-stat-item stat-heaven">
+                <div class="game-stat-val" id="val-heaven">0</div>
+                <div class="game-stat-label">Heaven</div>
+            </div>
+            <div class="game-stat-item stat-hell">
+                <div class="game-stat-val" id="val-hell">0</div>
+                <div class="game-stat-label">Hell</div>
+            </div>
+        </div>
+
+        <div class="game-inventory">
+            <svg viewBox="0 0 24 24"><use href="#icon-inv"></use></svg>
+            <div class="game-inv-content" id="ui-inventory">内裤, 棒棒糖</div>
+        </div>
+        
+        <div id="ui-toggle-btn" class="ui-toggle-btn" onclick="toggleGameUI(event)"></div>
+    </div>
+
+    <div id="game-stage">
+        <div class="msg-container" id="chat-history"></div>
+    </div>
+
+    <div class="input-area">
+        <div id="action-menu" class="action-menu">
+            <div class="menu-item" id="menu-fullscreen">
+                <svg viewBox="0 0 24 24"><use href="#icon-fullscreen"></use></svg>
+                <span>全屏 / 窗口</span>
+            </div>
+            <div class="menu-item" id="menu-music">
+                <svg viewBox="0 0 24 24"><use href="#icon-music"></use></svg>
+                <span>音乐点播</span>
+            </div>
+            <div class="menu-item reset-btn" id="menu-reset-data">
+                <svg viewBox="0 0 24 24"><use href="#icon-reset"></use></svg>
+                <span>重置数据</span>
+            </div>
+            <div class="menu-item" id="menu-chronicles">
+                <svg viewBox="0 0 24 24"><use href="#icon-story"></use></svg>
+                <span>总结设置</span>
+            </div>
+            <div class="menu-item" id="menu-effects">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9Z"/></svg>
+                <span>特效设置</span>
+            </div>
+            <div class="menu-item" id="menu-jump-prev">
+                <svg viewBox="0 0 24 24"><use href="#icon-jump"></use></svg>
+                <span>跳转上一条</span>
+            </div>
+            <div class="menu-item" id="menu-regen-msg">
+                <svg viewBox="0 0 24 24"><use href="#icon-regen"></use></svg>
+                <span>重新生成</span>
+            </div>
+            <div class="menu-item" id="menu-save-mgr">
+                <svg viewBox="0 0 24 24"><use href="#icon-save-mgr"></use></svg>
+                <span>存档管理</span>
+            </div>
+            <div class="menu-item" id="menu-new-chat">
+                <svg viewBox="0 0 24 24"><use href="#icon-newchat"></use></svg>
+                <span>新建聊天</span>
+            </div>
+        </div>
+
+        <div id="menu-toggle-btn">
+            <svg viewBox="0 0 24 24"><use href="#icon-menu"></use></svg>
+        </div>
+        <!-- 修复：增强的防自动填充属性，name设为随机值防止被识别为特定字段 -->
+        <input type="text" id="user-input" name="chat_input_field_random_suffix" placeholder="输入行动..."
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button id="send-btn">
+            <svg id="icon-send-svg" viewBox="0 0 24 24"><use href="#icon-send"></use></svg>
+            <div id="icon-loading" class="spinner" style="display:none;"></div>
+        </button>
+    </div>
+
+    <div id="custom-modal" class="custom-modal-overlay">
+        <div class="custom-modal-box">
+            <h3 class="modal-title" id="modal-title">标题</h3>
+            <p id="modal-text" class="modal-text" style="display:none;"></p>
+            <textarea id="modal-input" class="modal-textarea" style="display:none;"></textarea>
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" id="modal-cancel-btn">取消</button>
+                <button id="modal-confirm-btn" class="modal-btn btn-confirm">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 存档管理器弹窗 -->
+    <div id="save-manager" class="save-manager-overlay">
+        <div class="save-manager-box">
+            <div class="sm-header">
+                <h3 class="sm-title">SAVE DATA MANAGER</h3>
+                <div class="sm-controls">
+                    <button class="sm-icon-btn" id="sm-batch-manage" title="批量管理">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-edit"></use></svg>
+                    </button>
+                    <button class="sm-icon-btn" id="sm-close-btn" title="关闭">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-close"></use></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="sm-body">
+                <div id="save-list"></div>
+            </div>
+            <div class="sm-footer">
+                <button class="sm-btn btn-import" style="flex:1; background:#444; color:white;" id="sm-import-btn">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-import"></use></svg>
+                    导入存档
+                </button>
+                <button class="sm-btn btn-save" style="flex:1; background:var(--color-stocking); color:white;" id="sm-create-btn">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><use href="#icon-save-slot"></use></svg>
+                    新建空白存档
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">提示信息</div>
+    <div id="top-notification" class="top-notification">通知信息</div>
+
+    <!-- 底部 SVG 定义 -->
+    <svg class="gradient-def-block" style="position:absolute;bottom:0;width:0;height:0;">
+        <defs>
+            <linearGradient id="customStarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#29f1ff"><animate attributeName="stop-color" values="#29f1ff; #7b2ff7; #29f1ff" dur="3s" repeatCount="indefinite" /></stop>
+                <stop offset="100%" stop-color="#7b2ff7"><animate attributeName="stop-color" values="#7b2ff7; #29f1ff; #7b2ff7" dur="3s" repeatCount="indefinite" /></stop>
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <!-- 引入脚本 (注意加载顺序) -->
+    <script src="js/music-player.js"></script>
+    <script src="js/rpg-core.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
