@@ -31,6 +31,16 @@
             margin-bottom: 20px;
             text-align: left;
         }
+        .checkbox-group {
+            margin-bottom: 20px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+        }
+        .checkbox-group input {
+            width: auto;
+            margin-right: 10px;
+        }
         label {
             display: block;
             margin-bottom: 8px;
@@ -106,6 +116,11 @@
         <input type="text" id="originalUrl" placeholder="https://github.com/username/repo/blob/..." autocomplete="off">
     </div>
 
+    <div class="checkbox-group">
+        <input type="checkbox" id="useProxy" checked>
+        <label for="useProxy" style="display:inline; margin-bottom:0; font-weight:normal; cursor:pointer;">启用国内加速 (ghproxy.net)</label>
+    </div>
+
     <div class="input-group">
         <label for="convertedUrl">转换后的链接 (可直接导入酒馆)：</label>
         <input type="text" id="convertedUrl" readonly placeholder="转换后的链接将出现在这里...">
@@ -118,24 +133,28 @@
     <div class="tips">
         <strong>说明：</strong><br>
         1. 该工具会将 <code>github.com</code> 转换为 <code>raw.githubusercontent.com</code>。<br>
-        2. 自动添加 <code>https://ghproxy.net/</code> 加速前缀，解决国内网络连接超时问题。<br>
-        3. 请确保已在酒馆 <code>config.yaml</code> 的白名单中添加了 <code>ghproxy.net</code>。
+        2. 勾选“启用国内加速”会自动添加 <code>ghproxy.net</code> 前缀。<br>
+        3. 如果使用加速，请确保酒馆 <code>config.yaml</code> 白名单已添加 <code>ghproxy.net</code>。
     </div>
 </div>
 
 <script>
     const inputEl = document.getElementById('originalUrl');
     const outputEl = document.getElementById('convertedUrl');
+    const proxyCheckEl = document.getElementById('useProxy');
     const msgEl = document.getElementById('msg');
 
-    inputEl.addEventListener('input', function() {
-        const original = this.value.trim();
+    function update() {
+        const original = inputEl.value.trim();
         if (!original) {
             outputEl.value = '';
             return;
         }
         convertUrl(original);
-    });
+    }
+
+    inputEl.addEventListener('input', update);
+    proxyCheckEl.addEventListener('change', update);
 
     function convertUrl(url) {
         let newUrl = url;
@@ -148,14 +167,22 @@
 
         // 2. 添加加速前缀 (如果还没添加)
         const proxyPrefix = 'https://ghproxy.net/';
-        if (!newUrl.startsWith(proxyPrefix)) {
-            // 如果链接不包含 http 协议头，简单补全一下，防止拼接错误
-            if (!newUrl.startsWith('http')) {
-                newUrl = 'https://' + newUrl;
+        const useProxy = proxyCheckEl.checked;
+
+        if (useProxy) {
+            // 需要加速
+            if (!newUrl.startsWith(proxyPrefix)) {
+                if (!newUrl.startsWith('http')) {
+                    newUrl = 'https://' + newUrl;
+                }
+                if (!newUrl.includes('ghproxy.net/')) {
+                     newUrl = proxyPrefix + newUrl;
+                }
             }
-            // 避免重复添加 (虽然上面 check 了 startsWith，但防止用户粘贴了一半)
-            if (!newUrl.includes('ghproxy.net/')) {
-                 newUrl = proxyPrefix + newUrl;
+        } else {
+            // 不需要加速，如果之前加了，要去掉
+            if (newUrl.includes('ghproxy.net/')) {
+                newUrl = newUrl.replace(proxyPrefix, '');
             }
         }
 
