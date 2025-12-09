@@ -31,13 +31,9 @@
     };
 
     // 辅助函数：修正相对路径为绝对路径
-    // 将 url(...) 或 src="..." 中的相对路径替换为 CDN 路径
     const fixRelativePaths = (content, baseUrl) => {
-        // 简单正则替换：寻找 url('...') 或 url(...) 且不以 http/data 开头的
-        // 注意：这只是一个简单的替换，可能覆盖不全，重点修复 images/fonts
         return content.replace(/url\(['"]?(?!http|data:)([^'"]+)['"]?\)/g, (match, path) => {
-            // path 可能包含 ../
-            const cleanPath = path.replace(/^\.\.\//, ''); // 去掉开头的 ../
+            const cleanPath = path.replace(/^\.\.\//, ''); 
             return `url('${baseUrl}/${cleanPath}')`;
         });
     };
@@ -47,11 +43,6 @@
         
         // 1. 加载 CSS (并修复图片路径)
         let cssContent = await fetchText(`${REPO_ROOT}/css/style.css`);
-        // 假设 css 在 css/ 目录下，图片在 images/ (或其他同级/上级目录)
-        // 实际上 style.css 里引用的是 ../res/...，我们需要把基准路径定为 REPO_ROOT
-        // REPO_ROOT 是 https://.../PSG-TC
-        // CSS 里的 ../res/image.png 应该变为 https://.../PSG-TC/res/image.png
-        // 这里的 baseUrl 应该是 REPO_ROOT
         cssContent = fixRelativePaths(cssContent, REPO_ROOT);
         
         const style = document.createElement('style');
@@ -60,20 +51,17 @@
         PROGRESS(20);
         LOG("CSS Injected (Paths Fixed).");
 
-        // 2. 获取 HTML 结构并注入
-        // 使用同层主.html 作为模板，因为它包含我们需要的所有结构
-        // 之前的 index.html 是空的入口文件，我们要的是界面结构
-        // 但注意：同层主.html 是完整文档，我们需要提取 body 内容
-        // 且同层主.html 里的 img src 也是相对的，需要修复
-        let htmlText = await fetchText(`${REPO_ROOT}/同层主.html`);
+        // 2. 获取 HTML 结构并注入当前页面 (不是 iframe)
+        // 使用 index.html 作为源 (您 GitHub 上应该是 index.html)
+        const htmlText = await fetchText(`${REPO_ROOT}/index.html`);
         
-        // 修复 HTML 中的 src="..."
-        htmlText = htmlText.replace(/src=["'](?!http|data:)([^"']+)["']/g, (match, path) => {
+        // 修复 HTML 中的 src="..." (图片资源)
+        let fixedHtml = htmlText.replace(/src=["'](?!http|data:)([^"']+)["']/g, (match, path) => {
              return `src="${REPO_ROOT}/${path}"`;
         });
         
         const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
+        const doc = parser.parseFromString(fixedHtml, 'text/html');
         
         // 创建容器覆盖层
         const appContainer = document.createElement('div');
@@ -101,19 +89,6 @@
         // 3. 加载并执行 JS (IIFE 封装 + 路径修复)
         const executeScript = async (url) => {
             let code = await fetchText(url);
-            // 简单修复 JS 里的字符串路径 (例如 img.src = "...")
-            // 这是一个比较激进的替换，可能会误伤，但对于这个特定项目通常是安全的
-            // 重点替换: src = "..." 或者是 url(...) 这种显式资源引用
-            // 但 JS 里的动态路径很难静态修复。
-            // 这里我们假设 JS 里主要用的是 baseUrl 变量（如果有的话）
-            
-            // 针对 MusicManager，我们需要 patch 它的 baseUrl
-            // 现在的代码里写死了 "https://stockielchan.github.io/stocking-music/"
-            // 如果它依赖相对路径，我们需要在这里 replace
-            
-            // 包裹 IIFE 以防变量冲突
-            // 但 rpg-core 定义了 const RPG，这是全局需要的，不能完全隔离
-            // 我们不使用严格的隔离，而是直接 eval
             const script = document.createElement('script');
             script.textContent = code;
             document.body.appendChild(script);
