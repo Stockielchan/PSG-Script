@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>PSG Injector</title>
+    <title>PSG Injector v2 (Inject Mode)</title>
 </head>
 <body style="margin:0; padding:0; background:transparent;">
 
 <div id="psg-root-loader" style="padding: 20px; background: #000; color: #fff; font-family: monospace; border-radius: 8px;">
-    [SYSTEM] Initializing PSG Mobile UI (Injection Mode)...<br>
+    [SYSTEM] Initializing PSG Mobile UI (Code Injection Mode)...<br>
     [SOURCE] github.com/Stockielchan/PSG-Script<br>
     <div id="psg-loading-bar" style="width: 0%; height: 4px; background: #ff4081; transition: width 0.5s; margin-top: 10px;"></div>
 </div>
@@ -18,9 +18,6 @@
     // 仓库地址 (jsDelivr CDN 支持 CORS)
     const REPO_ROOT = 'https://cdn.jsdelivr.net/gh/Stockielchan/PSG-Script@main/PSG-TC';
     
-    // 如果 jsDelivr 失败，可以尝试 CORS Proxy (可选备用)
-    // const PROXY_ROOT = 'https://corsproxy.io/?url=' + encodeURIComponent('https://raw.githubusercontent.com/Stockielchan/PSG-Script/main/PSG-TC');
-
     const LOADER = document.getElementById('psg-root-loader');
     const BAR = document.getElementById('psg-loading-bar');
     const LOG = (msg) => { console.log(`[PSG-Loader] ${msg}`); if(LOADER) LOADER.innerHTML += `<br>> ${msg}`; };
@@ -33,46 +30,90 @@
         return await res.text();
     };
 
+    // 辅助函数：修正相对路径为绝对路径
+    // 将 url(...) 或 src="..." 中的相对路径替换为 CDN 路径
+    const fixRelativePaths = (content, baseUrl) => {
+        // 简单正则替换：寻找 url('...') 或 url(...) 且不以 http/data 开头的
+        // 注意：这只是一个简单的替换，可能覆盖不全，重点修复 images/fonts
+        return content.replace(/url\(['"]?(?!http|data:)([^'"]+)['"]?\)/g, (match, path) => {
+            // path 可能包含 ../
+            const cleanPath = path.replace(/^\.\.\//, ''); // 去掉开头的 ../
+            return `url('${baseUrl}/${cleanPath}')`;
+        });
+    };
+
     try {
         LOG("Connecting to repository...");
         
-        // 1. 加载 CSS (直接注入 <style> 标签以确保样式优先级)
-        const cssContent = await fetchText(`${REPO_ROOT}/css/style.css`);
+        // 1. 加载 CSS (并修复图片路径)
+        let cssContent = await fetchText(`${REPO_ROOT}/css/style.css`);
+        // 假设 css 在 css/ 目录下，图片在 images/ (或其他同级/上级目录)
+        // 实际上 style.css 里引用的是 ../res/...，我们需要把基准路径定为 REPO_ROOT
+        // REPO_ROOT 是 https://.../PSG-TC
+        // CSS 里的 ../res/image.png 应该变为 https://.../PSG-TC/res/image.png
+        // 这里的 baseUrl 应该是 REPO_ROOT
+        cssContent = fixRelativePaths(cssContent, REPO_ROOT);
+        
         const style = document.createElement('style');
         style.textContent = cssContent;
         document.head.appendChild(style);
         PROGRESS(20);
-        LOG("CSS Injected.");
+        LOG("CSS Injected (Paths Fixed).");
 
-        // 2. 获取 HTML 结构并注入当前页面 (不是 iframe)
-        const htmlText = await fetchText(`${REPO_ROOT}/index.html`); // 注意：使用 index.html 作为源
+        // 2. 获取 HTML 结构并注入
+        // 使用同层主.html 作为模板，因为它包含我们需要的所有结构
+        // 之前的 index.html 是空的入口文件，我们要的是界面结构
+        // 但注意：同层主.html 是完整文档，我们需要提取 body 内容
+        // 且同层主.html 里的 img src 也是相对的，需要修复
+        let htmlText = await fetchText(`${REPO_ROOT}/同层主.html`);
+        
+        // 修复 HTML 中的 src="..."
+        htmlText = htmlText.replace(/src=["'](?!http|data:)([^"']+)["']/g, (match, path) => {
+             return `src="${REPO_ROOT}/${path}"`;
+        });
+        
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, 'text/html');
         
         // 创建容器覆盖层
         const appContainer = document.createElement('div');
         appContainer.id = 'psg-app-container';
-        // 使用绝对定位覆盖，但不使用 iframe，这样它就在同一个 window 上
         appContainer.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:2147483647; background:#fff; overflow:hidden;";
         
-        // 提取 body 内容并注入容器
+        // 添加退出按钮
+        const exitBtn = document.createElement('div');
+        exitBtn.innerHTML = "×";
+        exitBtn.style.cssText = "position:absolute; top:10px; right:10px; z-index:2147483648; width:30px; height:30px; background:rgba(0,0,0,0.5); color:white; border-radius:50%; display:flex; justify-content:center; align-items:center; cursor:pointer; font-weight:bold;";
+        exitBtn.onclick = () => { document.body.removeChild(appContainer); };
+        appContainer.appendChild(exitBtn);
+
+        // 提取 body 内容并注入容器 (跳过 script 标签，防止重复执行或错序)
         Array.from(doc.body.childNodes).forEach(node => {
             if (node.tagName !== 'SCRIPT') {
                 appContainer.appendChild(node.cloneNode(true));
             }
         });
         
-        // 将容器挂载到 body 根节点，突破酒馆气泡限制
         document.body.appendChild(appContainer);
         PROGRESS(50);
         LOG("DOM Injected.");
 
-        // 3. 加载并执行 JS (eval 模式，确保在当前上下文执行)
-        // 我们使用 Function() 构造函数或 eval 来执行代码，使其能访问 window.TavernHelper
+        // 3. 加载并执行 JS (IIFE 封装 + 路径修复)
         const executeScript = async (url) => {
-            const code = await fetchText(url);
-            // 为了安全和隔离，我们将其包裹在一个闭包中，但允许访问 window
-            // 使用 indirect eval 或者动态创建 script 标签 (blob url)
+            let code = await fetchText(url);
+            // 简单修复 JS 里的字符串路径 (例如 img.src = "...")
+            // 这是一个比较激进的替换，可能会误伤，但对于这个特定项目通常是安全的
+            // 重点替换: src = "..." 或者是 url(...) 这种显式资源引用
+            // 但 JS 里的动态路径很难静态修复。
+            // 这里我们假设 JS 里主要用的是 baseUrl 变量（如果有的话）
+            
+            // 针对 MusicManager，我们需要 patch 它的 baseUrl
+            // 现在的代码里写死了 "https://stockielchan.github.io/stocking-music/"
+            // 如果它依赖相对路径，我们需要在这里 replace
+            
+            // 包裹 IIFE 以防变量冲突
+            // 但 rpg-core 定义了 const RPG，这是全局需要的，不能完全隔离
+            // 我们不使用严格的隔离，而是直接 eval
             const script = document.createElement('script');
             script.textContent = code;
             document.body.appendChild(script);
