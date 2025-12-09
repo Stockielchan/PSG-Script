@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub 酒馆链接转换器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #252526;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            width: 500px;
+            text-align: center;
+        }
+        h2 {
+            margin-top: 0;
+            color: #9cdcfe;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #cccccc;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #3c3c3c;
+            border: 1px solid #3c3c3c;
+            color: #ffffff;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #0e639c;
+        }
+        button {
+            background-color: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #1177bb;
+        }
+        button:active {
+            background-color: #094771;
+        }
+        .result-area {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            border: 1px dashed #444;
+            word-break: break-all;
+            min-height: 20px;
+            display: none;
+        }
+        .result-area.show {
+            display: block;
+        }
+        .tips {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #888;
+            text-align: left;
+        }
+        .success-msg {
+            color: #4ec9b0;
+            margin-top: 10px;
+            min-height: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🔗 GitHub 链接转换器</h2>
+    <p style="font-size: 14px; color: #aaa;">自动转换为酒馆可识别的加速直链</p>
+    
+    <div class="input-group">
+        <label for="originalUrl">粘贴 GitHub 原始链接：</label>
+        <input type="text" id="originalUrl" placeholder="https://github.com/username/repo/blob/..." autocomplete="off">
+    </div>
+
+    <div class="input-group">
+        <label for="convertedUrl">转换后的链接 (可直接导入酒馆)：</label>
+        <input type="text" id="convertedUrl" readonly placeholder="转换后的链接将出现在这里...">
+    </div>
+
+    <button onclick="copyToClipboard()">📋 复制转换后的链接</button>
+    
+    <div class="success-msg" id="msg"></div>
+
+    <div class="tips">
+        <strong>说明：</strong><br>
+        1. 该工具会将 <code>github.com</code> 转换为 <code>raw.githubusercontent.com</code>。<br>
+        2. 自动添加 <code>https://ghproxy.net/</code> 加速前缀，解决国内网络连接超时问题。<br>
+        3. 请确保已在酒馆 <code>config.yaml</code> 的白名单中添加了 <code>ghproxy.net</code>。
+    </div>
+</div>
+
+<script>
+    const inputEl = document.getElementById('originalUrl');
+    const outputEl = document.getElementById('convertedUrl');
+    const msgEl = document.getElementById('msg');
+
+    inputEl.addEventListener('input', function() {
+        const original = this.value.trim();
+        if (!original) {
+            outputEl.value = '';
+            return;
+        }
+        convertUrl(original);
+    });
+
+    function convertUrl(url) {
+        let newUrl = url;
+
+        // 1. 处理基础域名和 blob
+        if (newUrl.includes('github.com')) {
+            newUrl = newUrl.replace('github.com', 'raw.githubusercontent.com');
+            newUrl = newUrl.replace('/blob/', '/');
+        }
+
+        // 2. 添加加速前缀 (如果还没添加)
+        const proxyPrefix = 'https://ghproxy.net/';
+        if (!newUrl.startsWith(proxyPrefix)) {
+            // 如果链接不包含 http 协议头，简单补全一下，防止拼接错误
+            if (!newUrl.startsWith('http')) {
+                newUrl = 'https://' + newUrl;
+            }
+            // 避免重复添加 (虽然上面 check 了 startsWith，但防止用户粘贴了一半)
+            if (!newUrl.includes('ghproxy.net/')) {
+                 newUrl = proxyPrefix + newUrl;
+            }
+        }
+
+        outputEl.value = newUrl;
+    }
+
+    function copyToClipboard() {
+        const text = outputEl.value;
+        if (!text) {
+            msgEl.innerText = "⚠️ 请先输入链接！";
+            msgEl.style.color = "#ce9178";
+            return;
+        }
+
+        navigator.clipboard.writeText(text).then(() => {
+            msgEl.innerText = "✅ 复制成功！快去酒馆导入吧";
+            msgEl.style.color = "#4ec9b0";
+            
+            // 2秒后清除提示
+            setTimeout(() => {
+                msgEl.innerText = "";
+            }, 2000);
+        }).catch(err => {
+            msgEl.innerText = "❌ 复制失败，请手动复制";
+            msgEl.style.color = "#f48771";
+        });
+    }
+</script>
+
+</body>
+</html>
