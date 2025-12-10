@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TC 网页整合工具</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --accent-color: #646cff;
+            --accent-hover: #535bf2;
+            --panel-bg: #242424;
+            --border-color: #333;
+            --success-color: #4caf50;
+            --danger-color: #f44336;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--accent-color);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background-color 0.3s;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent-color);
+            background-color: rgba(100, 108, 255, 0.1);
+        }
+
+        .upload-area p {
+            margin: 10px 0;
+            color: #888;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.secondary {
+            background-color: #444;
+        }
+
+        button.secondary:hover {
+            background-color: #555;
+        }
+
+        button.danger {
+            background-color: var(--danger-color);
+        }
+
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+
+        .file-list-container {
+            margin-top: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #333;
+            position: sticky;
+            top: 0;
+        }
+
+        .file-type {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background-color: #444;
+        }
+
+        .file-type.html { background-color: #e44d26; color: white; }
+        .file-type.css { background-color: #264de4; color: white; }
+        .file-type.js { background-color: #f7df1e; color: black; }
+
+        .remove-btn {
+            color: #888;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .remove-btn:hover {
+            color: var(--danger-color);
+        }
+
+        .options-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #333;
+            border-radius: 4px;
+        }
+
+        .option-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-file-select {
+            padding: 8px;
+            background-color: #222;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .status-area {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .status-success {
+            background-color: rgba(76, 175, 80, 0.2);
+            border: 1px solid var(--success-color);
+            color: #81c784;
+        }
+
+        .status-error {
+            background-color: rgba(244, 67, 54, 0.2);
+            border: 1px solid var(--danger-color);
+            color: #e57373;
+        }
+
+        .hidden-input {
+            display: none;
+        }
+
+        .log-area {
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #888;
+            max-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>TC 源码整合工具</h1>
+
+    <div class="upload-area" id="dropZone">
+        <p>拖动文件或文件夹到此处</p>
+        <p>或者</p>
+        <div class="btn-group">
+            <button onclick="document.getElementById('fileInput').click()">选择文件 (多选)</button>
+            <button class="secondary" onclick="document.getElementById('folderInput').click()">选择文件夹</button>
+        </div>
+        <input type="file" id="fileInput" class="hidden-input" multiple onchange="handleFiles(this.files)">
+        <input type="file" id="folderInput" class="hidden-input" webkitdirectory onchange="handleFiles(this.files)">
+    </div>
+
+    <div class="file-list-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>文件名</th>
+                    <th>路径</th>
+                    <th>类型</th>
+                    <th>大小</th>
+                    <th style="width: 50px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="fileTableBody">
+                <!-- 文件列表将在这里渲染 -->
+            </tbody>
+        </table>
+    </div>
+    <div style="text-align: right; padding: 10px; color: #666; font-size: 12px;" id="fileCount">0 个文件</div>
+
+    <div class="options-panel">
+        <div class="option-group">
+            <label>主入口文件 (HTML):</label>
+            <select id="mainFileSelect" class="main-file-select" disabled>
+                <option value="">请先上传文件...</option>
+            </select>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="removeComments"> 
+                <span>去除注释 (CSS/JS/HTML) <span style="font-size: 12px; color: #aaa;">*实验性功能，可能会误伤部分代码，建议先备份</span></span>
+            </label>
+        </div>
+
+        <div class="option-group">
+             <label class="checkbox-label">
+                <input type="checkbox" id="injectUnused" checked>
+                <span>强制注入未引用的 JS/CSS 文件 (追加到末尾)</span>
+            </label>
+        </div>
+
+        <div class="option-group">
+            <label>生成文件名:</label>
+            <input type="text" id="outputFileName" class="main-file-select" placeholder="整合文件.html">
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="autoDownload" checked>
+                <span>生成后自动下载</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="btn-group">
+        <button onclick="clearAllFiles()" class="secondary" style="background-color: #d32f2f;">清空列表</button>
+        <button onclick="startMerge()" style="font-size: 16px; padding: 12px 30px;">生成整合文件</button>
+    </div>
+
+    <div id="statusArea" class="status-area"></div>
+    <div id="logArea" class="log-area"></div>
+</div>
+
+<script>
+    let allFiles = []; // 存储 File 对象
+
+    const dropZone = document.getElementById('dropZone');
+    const fileTableBody = document.getElementById('fileTableBody');
+    const fileCount = document.getElementById('fileCount');
+    const mainFileSelect = document.getElementById('mainFileSelect');
+    const outputFileNameInput = document.getElementById('outputFileName');
+    const statusArea = document.getElementById('statusArea');
+    const logArea = document.getElementById('logArea');
+
+    // 初始化默认文件名
+    const now = new Date();
+    const timeStr = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}_${now.getHours().toString().padStart(2,'0')}${now.getMinutes().toString().padStart(2,'0')}`;
+    outputFileNameInput.value = `整合文件_${timeStr}.html`;
+
+    // 拖拽事件处理
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        
+        // 尝试使用 Webkit GetAsEntry 获取文件夹结构
+        const items = e.dataTransfer.items;
+        if (items) {
+            const files = [];
+            let pendingScans = 0;
+
+            const scanEntry = (entry) => {
+                pendingScans++;
+                if (entry.isFile) {
+                    entry.file(file => {
+                        // 补充 path 信息，如果 entry.fullPath 存在
+                        if(entry.fullPath) {
+                            // 手动给 file 对象 patch 一个 fullPath 属性，或者利用 webkitRelativePath
+                            // 注意：File 对象是只读的，webkitRelativePath 也是只读。
+                            // 我们在内部管理时使用一个包装对象或者直接利用 file 本身，
+                            // 这里我们利用 Object.defineProperty 强行写入一个 path 用于后续识别
+                            Object.defineProperty(file, 'customPath', { value: entry.fullPath.substring(1) }); // 去掉开头的 /
+                        }
+                        handleFiles([file]);
+                        pendingScans--;
+                    });
+                } else if (entry.isDirectory) {
+                    const dirReader = entry.createReader();
+                    const readEntries = () => {
+                        dirReader.readEntries(entries => {
+                            if (entries.length === 0) {
+                                pendingScans--;
+                            } else {
+                                entries.forEach(scanEntry);
+                                readEntries(); // 继续读取，因为 readEntries 可能只返回部分
+                            }
+                        });
+                    };
+                    readEntries();
+                }
+            };
+
+            for (let i = 0; i < items.length; i++) {
+                const entry = items[i].webkitGetAsEntry();
+                if (entry) {
+                    scanEntry(entry);
+                }
+            }
+        } else {
+            handleFiles(e.dataTransfer.files);
+        }
+    });
+
+    function handleFiles(files) {
+        let newFilesCount = 0;
+        Array.from(files).forEach(file => {
+            // 简单去重：同名且同大小
+            if (!allFiles.some(f => f.name === file.name && f.size === file.size && getFilePath(f) === getFilePath(file))) {
+                allFiles.push(file);
+                newFilesCount++;
+            }
+        });
+        
+        if(newFilesCount > 0) {
+            updateUI();
+            log(`已添加 ${newFilesCount} 个文件`);
+        }
+    }
+
+    function getFilePath(file) {
+        return file.customPath || file.webkitRelativePath || file.name;
+    }
+
+    function removeFile(index) {
+        allFiles.splice(index, 1);
+        updateUI();
+    }
+
+    function clearAllFiles() {
+        allFiles = [];
+        updateUI();
+        log("已清空列表");
+    }
+
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function getFileType(name) {
+        const ext = name.split('.').pop().toLowerCase();
+        if (ext === 'html' || ext === 'htm') return 'html';
+        if (ext === 'css') return 'css';
+        if (ext === 'js') return 'js';
+        return ext;
+    }
+
+    function updateUI() {
+        // 更新文件列表
+        fileTableBody.innerHTML = '';
+        allFiles.forEach((file, index) => {
+            const tr = document.createElement('tr');
+            const type = getFileType(file.name);
+            const path = getFilePath(file);
+            
+            tr.innerHTML = `
+                <td>${file.name}</td>
+                <td style="color: #888; font-size: 12px;">${path}</td>
+                <td><span class="file-type ${type}">${type.toUpperCase()}</span></td>
+                <td>${formatSize(file.size)}</td>
+                <td><span class="remove-btn" onclick="removeFile(${index})">&times;</span></td>
+            `;
+            fileTableBody.appendChild(tr);
+        });
+
+        fileCount.textContent = `${allFiles.length} 个文件`;
+
+        // 更新主文件下拉框
+        const currentSelection = mainFileSelect.value;
+        mainFileSelect.innerHTML = '<option value="">-- 请选择 --</option>';
+        
+        let htmlFiles = allFiles.filter(f => getFileType(f.name) === 'html');
+        htmlFiles.forEach(f => {
+            const option = document.createElement('option');
+            option.value = getFilePath(f); // 使用路径作为 value 唯一标识
+            option.textContent = getFilePath(f);
+            mainFileSelect.appendChild(option);
+        });
+
+        mainFileSelect.disabled = htmlFiles.length === 0;
+        
+        // 智能选择主文件
+        if (htmlFiles.length > 0) {
+            // 如果之前选的还在，保持选择
+            if (currentSelection && htmlFiles.some(f => getFilePath(f) === currentSelection)) {
+                mainFileSelect.value = currentSelection;
+            } else {
+                // 优先找 index.html, main.html, TC.html, 同层主.html
+                const priorityNames = ['index.html', 'main.html', 'tc.html', '同层主.html'];
+                let bestMatch = htmlFiles[0];
+                
+                for (let name of priorityNames) {
+                    const match = htmlFiles.find(f => f.name.toLowerCase() === name);
+                    if (match) {
+                        bestMatch = match;
+                        break;
+                    }
+                }
+                mainFileSelect.value = getFilePath(bestMatch);
+            }
+        }
+    }
+
+    function log(msg) {
+        const div = document.createElement('div');
+        div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logArea.prepend(div);
+    }
+
+    function showStatus(msg, type) {
+        statusArea.style.display = 'block';
+        statusArea.className = 'status-area ' + (type === 'error' ? 'status-error' : 'status-success');
+        statusArea.textContent = msg;
+    }
+
+    // --- 核心整合逻辑 ---
+
+    // 简单的去注释函数
+    function stripComments(content, type) {
+        if (!document.getElementById('removeComments').checked) return content;
+        
+        try {
+            if (type === 'css') {
+                return content.replace(/\/\*[\s\S]*?\*\//g, '');
+            } else if (type === 'js') {
+                // 简单且相对安全的正则，去除块注释和行注释（非URL）
+                 return content.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/(?!.*:\/\/).*$/gm, '$1');
+            } else if (type === 'html') {
+                // 使用 new RegExp 避免 HTML 注释标记干扰解析
+                return content.replace(new RegExp('<!-' + '-[\\s\\S]*?-' + '->', 'g'), '');
+            }
+        } catch (e) {
+            log(`去除注释时出错: ${e.message}`);
+            return content;
+        }
+        return content;
+    }
+
+    async function readFileContent(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = e => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    async function startMerge() {
+        if (allFiles.length === 0) {
+            showStatus("请先上传文件！", "error");
+            return;
+        }
+
+        const mainFilePath = mainFileSelect.value;
+        if (!mainFilePath) {
+            showStatus("请选择一个主入口 HTML 文件！", "error");
+            return;
+        }
+
+        showStatus("正在处理...", "success");
+        log("开始整合...");
+
+        try {
+            // 1. 读取所有文件内容到内存 Map
+            const fileMap = new Map(); // path -> { content, used }
+            const filesData = {}; // 简单的 name -> content 映射用于后备查找
+
+            log("读取所有文件内容...");
+            for (const file of allFiles) {
+                const content = await readFileContent(file);
+                const path = getFilePath(file);
+                const type = getFileType(file.name);
+                
+                // 预处理内容（去注释）
+                const processedContent = stripComments(content, type);
+                
+                fileMap.set(path, {
+                    file: file,
+                    content: processedContent,
+                    type: type,
+                    used: false
+                });
+
+                // 为了方便模糊匹配，也存一份只按文件名索引的
+                if (!filesData[file.name]) {
+                    filesData[file.name] = processedContent; 
+                }
+            }
+
+            // 2. 获取主 HTML
+            const mainFileEntry = fileMap.get(mainFilePath);
+            let htmlContent = mainFileEntry.content;
+            mainFileEntry.used = true;
+
+            // 3. 替换 CSS
+            // 匹配 <link rel="stylesheet" href="...">
+            htmlContent = htmlContent.replace(/<link\s+[^>]*rel=["']stylesheet["'][^>]*>/gi, (match) => {
+                const hrefMatch = match.match(/href=["']([^"']+)["']/i);
+                if (hrefMatch) {
+                    const href = hrefMatch[1];
+                    // 尝试寻找文件
+                    let cssContent = findFileContent(href, mainFilePath, fileMap, filesData);
+                    
+                    if (cssContent) {
+                        log(`已内联 CSS: ${href}`);
+                        return `<style>\n${cssContent}\n</style>`;
+                    } else {
+                        log(`警告: 找不到 CSS 文件 ${href}`);
+                        return match; // 保持原样或注释掉
+                    }
+                }
+                return match;
+            });
+
+            // 4. 替换 JS
+            // 匹配 script 标签
+            // 使用 hex 编码构造正则，彻底避免 HTML 解析器误判闭合标签
+            const scriptRegex = new RegExp('\\x3cscript\\s+[^>]*src=["\']([^"\']+)["\'][^>]*>\\s*\\x3c\\x2fscript>', 'gi');
+            htmlContent = htmlContent.replace(scriptRegex, (match) => {
+                const srcMatch = match.match(/src=["']([^"']+)["']/i);
+                if (srcMatch) {
+                    const src = srcMatch[1];
+                    // 尝试寻找文件
+                    let jsContent = findFileContent(src, mainFilePath, fileMap, filesData);
+                    
+                    if (jsContent) {
+                        log(`已内联 JS: ${src}`);
+                        // 输出时同样打断 script 标签
+                        return '\x3cscript>\n' + jsContent + '\n\x3c/script>';
+                    } else {
+                        log(`警告: 找不到 JS 文件 ${src}`);
+                        return match;
+                    }
+                }
+                return match;
+            });
+
+            // 5. 注入未使用的文件 (如果勾选)
+            if (document.getElementById('injectUnused').checked) {
+                let extraCss = '';
+                let extraJs = '';
+
+                fileMap.forEach((entry, path) => {
+                    if (!entry.used && path !== mainFilePath) {
+                        if (entry.type === 'css') {
+                            extraCss += `\n/* Injected from ${path} */\n${entry.content}\n`;
+                            entry.used = true;
+                            log(`追加未引用 CSS: ${path}`);
+                        } else if (entry.type === 'js') {
+                            extraJs += `\n// Injected from ${path}\n${entry.content}\n`;
+                            entry.used = true;
+                            log(`追加未引用 JS: ${path}`);
+                        }
+                    }
+                });
+
+                if (extraCss) {
+                    const headEnd = htmlContent.indexOf('</head>');
+                    if (headEnd > -1) {
+                        htmlContent = htmlContent.substring(0, headEnd) + `<style>${extraCss}</style>` + htmlContent.substring(headEnd);
+                    } else {
+                        htmlContent += `<style>${extraCss}</style>`;
+                    }
+                }
+
+                if (extraJs) {
+                    const bodyEnd = htmlContent.indexOf('</body>');
+                    const scriptTag = '\x3cscript>' + extraJs + '\x3c/script>';
+                    if (bodyEnd > -1) {
+                        htmlContent = htmlContent.substring(0, bodyEnd) + scriptTag + htmlContent.substring(bodyEnd);
+                    } else {
+                        htmlContent += scriptTag;
+                    }
+                }
+            }
+
+            // 6. 生成并下载
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            
+            let downloadName = outputFileNameInput.value.trim();
+            if (!downloadName) downloadName = '整合文件.html';
+            if (!downloadName.endsWith('.html') && !downloadName.endsWith('.htm')) downloadName += '.html';
+
+            if (document.getElementById('autoDownload').checked) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = downloadName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showStatus(`生成成功！已开始下载 ${downloadName}`, "success");
+            } else {
+                 showStatus(`生成成功！准备就绪。`, "success");
+                 log(`文件已生成，但未自动下载。`);
+                 // 如果不自动下载，可以在界面上显示一个手动下载链接，这里简单处理，追加一个临时的下载按钮到日志区
+                 const manualLink = document.createElement('a');
+                 manualLink.href = url;
+                 manualLink.download = downloadName;
+                 manualLink.textContent = `点击此处下载 ${downloadName}`;
+                 manualLink.style.display = 'block';
+                 manualLink.style.marginTop = '10px';
+                 manualLink.style.color = '#646cff';
+                 logArea.prepend(manualLink);
+            }
+            
+            // 注意：如果不是立即点击下载，URL 可能会在一段时间后失效，这里暂时不 revoke，或者依靠页面刷新释放
+            // URL.revokeObjectURL(url);
+            log("完成。");
+
+        } catch (err) {
+            console.error(err);
+            showStatus("整合过程中发生错误: " + err.message, "error");
+        }
+    }
+
+    // 辅助查找文件函数
+    function findFileContent(refPath, mainPath, fileMap, filesData) {
+        // refPath: HTML 里引用的路径，例如 "css/style.css" 或 "../js/app.js"
+        // mainPath: 主 HTML 的路径，例如 "MyProject/index.html"
+        
+        // 策略1: 假设是相对路径，尝试解析出绝对路径 (简化版)
+        // 注意：fileMap 的 key 通常是 "Folder/Sub/file.ext" 这种格式
+        
+        // 简单清理 refPath
+        let cleanRef = refPath.split('?')[0]; // 去掉 ?v=123
+        
+        // 1. 精确全路径匹配 (不太可能，因为 ref 只是片段)
+        if (fileMap.has(cleanRef)) {
+            fileMap.get(cleanRef).used = true;
+            return fileMap.get(cleanRef).content;
+        }
+
+        // 2. 尝试后缀匹配 (最常用)
+        // 如果 ref 是 "js/app.js"，我们找 map 中以 "js/app.js" 结尾的项
+        // 如果 ref 是 "app.js", 我们找 map 中以 "/app.js" 结尾或就是 "app.js" 的项
+        for (let [path, entry] of fileMap) {
+            // 统一路径分隔符
+            const normalizedPath = path.replace(/\\/g, '/');
+            const normalizedRef = cleanRef.replace(/\\/g, '/');
+            
+            // 检查 path 是否以 ref 结尾
+            if (normalizedPath.endsWith(normalizedRef)) {
+                 // 进一步验证：确保结尾匹配不是因为部分文件名匹配
+                 // 例如 ref="yle.css" 不应该匹配 "style.css"
+                 // 应该匹配 "/yle.css" 或者 ref 就是完整路径
+                 const pathParts = normalizedPath.split('/');
+                 const refParts = normalizedRef.split('/');
+                 
+                 if (pathParts[pathParts.length - 1] === refParts[refParts.length - 1]) {
+                      entry.used = true;
+                      return entry.content;
+                 }
+            }
+        }
+
+        // 3. 如果还没找到，尝试直接用文件名匹配 (filesData)
+        // 这种情况下可能会有重名风险，但在简单项目中可以作为兜底
+        const fileName = cleanRef.split('/').pop();
+        if (filesData[fileName]) {
+            // 标记 map 中对应的项为 used (稍微麻烦点，这里先略过标记，反正只是兜底)
+             for (let [path, entry] of fileMap) {
+                 if(path.endsWith(fileName)) entry.used = true;
+             }
+            return filesData[fileName];
+        }
+
+        return null;
+    }
+
+</script>
+
+</body>
+</html>
