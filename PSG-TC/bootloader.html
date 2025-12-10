@@ -2,14 +2,15 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>PSG Injector v2 (Inject Mode)</title>
+    <title>PSG Injector v3 (Stable)</title>
 </head>
 <body style="margin:0; padding:0; background:transparent;">
 
 <div id="psg-root-loader" style="padding: 20px; background: #000; color: #fff; font-family: monospace; border-radius: 8px;">
-    [SYSTEM] Initializing PSG Mobile UI (Code Injection Mode)...<br>
+    [SYSTEM] Initializing PSG Mobile UI (Injection Mode)...<br>
     [SOURCE] github.com/Stockielchan/PSG-Script<br>
     <div id="psg-loading-bar" style="width: 0%; height: 4px; background: #ff4081; transition: width 0.5s; margin-top: 10px;"></div>
+    <div id="psg-error-log" style="color: #ff5252; margin-top: 10px; font-size: 12px; display: none;"></div>
 </div>
 
 <script>
@@ -20,14 +21,30 @@
     
     const LOADER = document.getElementById('psg-root-loader');
     const BAR = document.getElementById('psg-loading-bar');
-    const LOG = (msg) => { console.log(`[PSG-Loader] ${msg}`); if(LOADER) LOADER.innerHTML += `<br>> ${msg}`; };
+    const ERR_LOG = document.getElementById('psg-error-log');
+    
+    const LOG = (msg) => { 
+        console.log(`[PSG-Loader] ${msg}`); 
+        if(LOADER) LOADER.insertAdjacentHTML('beforeend', `<br>> ${msg}`); 
+    };
+    const ERROR = (msg) => {
+        console.error(`[PSG-Loader] ERROR: ${msg}`);
+        if(ERR_LOG) {
+            ERR_LOG.style.display = 'block';
+            ERR_LOG.innerText = `ERROR: ${msg}`;
+        }
+    };
     const PROGRESS = (pct) => { if(BAR) BAR.style.width = `${pct}%`; };
 
     // 辅助函数：加载远程文本
     const fetchText = async (url) => {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-        return await res.text();
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
+            return await res.text();
+        } catch (e) {
+            throw new Error(`Fetch failed: ${url} (${e.message})`);
+        }
     };
 
     // 辅助函数：修正相对路径为绝对路径
@@ -41,9 +58,24 @@
     try {
         LOG("Connecting to repository...");
         
-        // 1. 加载 CSS (并修复图片路径)
+        // 1. 加载 CSS (强制最高优先级样式)
         let cssContent = await fetchText(`${REPO_ROOT}/css/style.css`);
         cssContent = fixRelativePaths(cssContent, REPO_ROOT);
+        
+        // 增加容器样式覆盖
+        cssContent += `
+            #psg-app-container {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                z-index: 2147483647 !important;
+                background: #fff !important;
+                overflow: hidden !important;
+                display: block !important;
+            }
+        `;
         
         const style = document.createElement('style');
         style.textContent = cssContent;
@@ -51,9 +83,9 @@
         PROGRESS(20);
         LOG("CSS Injected (Paths Fixed).");
 
-        // 2. 获取 HTML 结构并注入当前页面 (不是 iframe)
-        // 使用 index.html 作为源 (您 GitHub 上应该是 index.html)
-        const htmlText = await fetchText(`${REPO_ROOT}/index.html`);
+        // 2. 获取 HTML 结构并注入
+        // 使用 index.html 作为源 (确保 GitHub 上存在此文件)
+        let htmlText = await fetchText(`${REPO_ROOT}/index.html`);
         
         // 修复 HTML 中的 src="..." (图片资源)
         let fixedHtml = htmlText.replace(/src=["'](?!http|data:)([^"']+)["']/g, (match, path) => {
@@ -66,7 +98,6 @@
         // 创建容器覆盖层
         const appContainer = document.createElement('div');
         appContainer.id = 'psg-app-container';
-        appContainer.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:2147483647; background:#fff; overflow:hidden;";
         
         // 添加退出按钮
         const exitBtn = document.createElement('div');
@@ -75,7 +106,7 @@
         exitBtn.onclick = () => { document.body.removeChild(appContainer); };
         appContainer.appendChild(exitBtn);
 
-        // 提取 body 内容并注入容器 (跳过 script 标签，防止重复执行或错序)
+        // 提取 body 内容并注入容器 (跳过 script 标签)
         Array.from(doc.body.childNodes).forEach(node => {
             if (node.tagName !== 'SCRIPT') {
                 appContainer.appendChild(node.cloneNode(true));
@@ -89,8 +120,26 @@
         // 3. 加载并执行 JS (IIFE 封装 + 路径修复)
         const executeScript = async (url) => {
             let code = await fetchText(url);
+            
+            // 安全包裹 IIFE，防止全局变量污染冲突
+            // 但需要允许访问 window.gameState 等
+            // 我们通过一个立即执行的异步函数来包裹
+            const wrappedCode = `
+                (async function() {
+                    try {
+                        ${code}
+                    } catch(e) {
+                        console.error("Error executing ${url}:", e);
+                        const errDiv = document.createElement('div');
+                        errDiv.style.cssText = "position:fixed;bottom:10px;left:10px;background:red;color:white;padding:5px;z-index:9999999;";
+                        errDiv.innerText = "Script Error: " + e.message;
+                        document.body.appendChild(errDiv);
+                    }
+                })();
+            `;
+            
             const script = document.createElement('script');
-            script.textContent = code;
+            script.textContent = wrappedCode;
             document.body.appendChild(script);
         };
 
@@ -108,12 +157,12 @@
         
         LOG("Launch Complete!", "success");
         
-        // 移除加载器
-        setTimeout(() => { if(LOADER) LOADER.parentElement.remove(); }, 800);
+        // 移除加载器 (稍微延迟)
+        setTimeout(() => { if(LOADER) LOADER.parentElement.remove(); }, 1000);
 
     } catch (e) {
-        LOG(`FATAL: ${e.message}`, "error");
-        console.error(e);
+        ERROR(e.message);
+        // 如果出错，不要移除加载器，让用户看到错误
     }
 })();
 </script>
