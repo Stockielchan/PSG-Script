@@ -2,168 +2,200 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>PSG Injector v3 (Stable)</title>
+    <title>PSG Smart Loader (Cache Enabled)</title>
 </head>
 <body style="margin:0; padding:0; background:transparent;">
 
-<div id="psg-root-loader" style="padding: 20px; background: #000; color: #fff; font-family: monospace; border-radius: 8px;">
-    [SYSTEM] Initializing PSG Mobile UI (Injection Mode)...<br>
-    [SOURCE] github.com/Stockielchan/PSG-Script<br>
-    <div id="psg-loading-bar" style="width: 0%; height: 4px; background: #ff4081; transition: width 0.5s; margin-top: 10px;"></div>
+<!-- 加载界面 -->
+<div id="psg-root-loader" style="padding: 20px; background: #1a1a1a; color: #fff; font-family: monospace; border-radius: 8px; border: 1px solid #333; max-width: 400px; margin: 20px;">
+    <div style="font-weight:bold; color:#ff4081; margin-bottom:5px;">[SYSTEM] PSG Smart Loader</div>
+    <div id="psg-status">Checking cache...</div>
+    <div id="psg-loading-bar" style="width: 0%; height: 4px; background: #00e5ff; transition: width 0.3s; margin-top: 10px;"></div>
     <div id="psg-error-log" style="color: #ff5252; margin-top: 10px; font-size: 12px; display: none;"></div>
+    
+    <!-- 强制更新按钮 (默认隐藏) -->
+    <button id="psg-force-update" style="display:none; margin-top:10px; background:#333; color:#ccc; border:1px solid #555; padding:5px 10px; cursor:pointer; font-size:12px;">
+        Force Update from GitHub
+    </button>
 </div>
 
 <script>
 (async function() {
-    // === 配置区 ===
-    // 仓库地址 (jsDelivr CDN 支持 CORS)
-    const REPO_ROOT = 'https://cdn.jsdelivr.net/gh/Stockielchan/PSG-Script@main/PSG-TC';
-    
-    const LOADER = document.getElementById('psg-root-loader');
-    const BAR = document.getElementById('psg-loading-bar');
-    const ERR_LOG = document.getElementById('psg-error-log');
-    
-    const LOG = (msg) => { 
-        console.log(`[PSG-Loader] ${msg}`); 
-        if(LOADER) LOADER.insertAdjacentHTML('beforeend', `<br>> ${msg}`); 
-    };
-    const ERROR = (msg) => {
-        console.error(`[PSG-Loader] ERROR: ${msg}`);
-        if(ERR_LOG) {
-            ERR_LOG.style.display = 'block';
-            ERR_LOG.innerText = `ERROR: ${msg}`;
-        }
-    };
-    const PROGRESS = (pct) => { if(BAR) BAR.style.width = `${pct}%`; };
-
-    // 辅助函数：加载远程文本
-    const fetchText = async (url) => {
-        try {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-            return await res.text();
-        } catch (e) {
-            throw new Error(`Fetch failed: ${url} (${e.message})`);
-        }
+    // === 配置 ===
+    const CONFIG = {
+        REPO_ROOT: 'https://cdn.jsdelivr.net/gh/Stockielchan/PSG-Script@main/PSG-TC',
+        CACHE_KEY_PREFIX: 'PSG_TC_CACHE_V1_',
+        VERSION_KEY: 'PSG_TC_VERSION',
+        // 如果您更新了 GitHub 代码，请务必修改这里的版本号，否则玩家不会自动更新
+        CURRENT_VERSION: '2.0.1' 
     };
 
-    // 辅助函数：修正相对路径为绝对路径
+    const UI = {
+        loader: document.getElementById('psg-root-loader'),
+        status: document.getElementById('psg-status'),
+        bar: document.getElementById('psg-loading-bar'),
+        err: document.getElementById('psg-error-log'),
+        btn: document.getElementById('psg-force-update')
+    };
+
+    const LOG = (msg) => { console.log(`[PSG] ${msg}`); UI.status.innerText = msg; };
+    const ERROR = (msg) => { console.error(`[PSG] ${msg}`); UI.err.style.display='block'; UI.err.innerText = msg; };
+    const PROGRESS = (pct) => { UI.bar.style.width = `${pct}%`; };
+
+    // === 核心逻辑 ===
+
+    // 1. 资源列表
+    const RESOURCES = [
+        { type: 'css', url: `${CONFIG.REPO_ROOT}/css/style.css`, key: 'style.css' },
+        { type: 'html', url: `${CONFIG.REPO_ROOT}/index.html`, key: 'index.html' },
+        { type: 'js', url: `${CONFIG.REPO_ROOT}/js/rpg-core.js`, key: 'rpg-core.js' },
+        { type: 'js', url: `${CONFIG.REPO_ROOT}/js/music-player.js`, key: 'music-player.js' },
+        { type: 'js', url: `${CONFIG.REPO_ROOT}/js/main.js`, key: 'main.js' }
+    ];
+
+    // 2. 缓存管理
+    const Cache = {
+        get: (key) => localStorage.getItem(CONFIG.CACHE_KEY_PREFIX + key),
+        set: (key, val) => localStorage.setItem(CONFIG.CACHE_KEY_PREFIX + key, val),
+        clear: () => {
+            Object.keys(localStorage).forEach(k => {
+                if(k.startsWith(CONFIG.CACHE_KEY_PREFIX)) localStorage.removeItem(k);
+            });
+            localStorage.removeItem(CONFIG.VERSION_KEY);
+        },
+        hasAll: () => RESOURCES.every(res => localStorage.getItem(CONFIG.CACHE_KEY_PREFIX + res.key))
+    };
+
+    // 3. 辅助函数
     const fixRelativePaths = (content, baseUrl) => {
         return content.replace(/url\(['"]?(?!http|data:)([^'"]+)['"]?\)/g, (match, path) => {
             const cleanPath = path.replace(/^\.\.\//, ''); 
             return `url('${baseUrl}/${cleanPath}')`;
         });
     };
+    
+    const fixHtmlPaths = (content, baseUrl) => {
+        return content.replace(/src=["'](?!http|data:)([^"']+)["']/g, (match, path) => `src="${baseUrl}/${path}"`);
+    };
 
-    try {
-        LOG("Connecting to repository...");
-        
-        // 1. 加载 CSS (强制最高优先级样式)
-        let cssContent = await fetchText(`${REPO_ROOT}/css/style.css`);
-        cssContent = fixRelativePaths(cssContent, REPO_ROOT);
-        
-        // 增加容器样式覆盖
-        cssContent += `
-            #psg-app-container {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                z-index: 2147483647 !important;
-                background: #fff !important;
-                overflow: hidden !important;
-                display: block !important;
+    // 4. 下载逻辑
+    const downloadResources = async () => {
+        LOG("Downloading resources...");
+        let completed = 0;
+        for (const res of RESOURCES) {
+            try {
+                const response = await fetch(res.url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                let content = await response.text();
+                
+                // 预处理路径
+                if (res.type === 'css') content = fixRelativePaths(content, CONFIG.REPO_ROOT);
+                if (res.type === 'html') content = fixHtmlPaths(content, CONFIG.REPO_ROOT);
+                
+                Cache.set(res.key, content);
+                completed++;
+                PROGRESS((completed / RESOURCES.length) * 100);
+            } catch (e) {
+                throw new Error(`Failed to load ${res.key}: ${e.message}`);
             }
-        `;
-        
-        const style = document.createElement('style');
-        style.textContent = cssContent;
-        document.head.appendChild(style);
-        PROGRESS(20);
-        LOG("CSS Injected (Paths Fixed).");
+        }
+        localStorage.setItem(CONFIG.VERSION_KEY, CONFIG.CURRENT_VERSION);
+        LOG("Download complete.");
+    };
 
-        // 2. 获取 HTML 结构并注入
-        // 使用 index.html 作为源 (确保 GitHub 上存在此文件)
-        let htmlText = await fetchText(`${REPO_ROOT}/index.html`);
+    // 5. 注入逻辑 (从缓存读取)
+    const injectFromCache = async () => {
+        LOG("Injecting from cache...");
         
-        // 修复 HTML 中的 src="..." (图片资源)
-        let fixedHtml = htmlText.replace(/src=["'](?!http|data:)([^"']+)["']/g, (match, path) => {
-             return `src="${REPO_ROOT}/${path}"`;
-        });
-        
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(fixedHtml, 'text/html');
-        
-        // 创建容器覆盖层
-        const appContainer = document.createElement('div');
-        appContainer.id = 'psg-app-container';
-        
-        // 添加退出按钮
-        const exitBtn = document.createElement('div');
-        exitBtn.innerHTML = "×";
-        exitBtn.style.cssText = "position:absolute; top:10px; right:10px; z-index:2147483648; width:30px; height:30px; background:rgba(0,0,0,0.5); color:white; border-radius:50%; display:flex; justify-content:center; align-items:center; cursor:pointer; font-weight:bold;";
-        exitBtn.onclick = () => { document.body.removeChild(appContainer); };
-        appContainer.appendChild(exitBtn);
-
-        // 提取 body 内容并注入容器 (跳过 script 标签)
-        Array.from(doc.body.childNodes).forEach(node => {
-            if (node.tagName !== 'SCRIPT') {
-                appContainer.appendChild(node.cloneNode(true));
-            }
-        });
-        
-        document.body.appendChild(appContainer);
-        PROGRESS(50);
-        LOG("DOM Injected.");
-
-        // 3. 加载并执行 JS (IIFE 封装 + 路径修复)
-        const executeScript = async (url) => {
-            let code = await fetchText(url);
-            
-            // 安全包裹 IIFE，防止全局变量污染冲突
-            // 但需要允许访问 window.gameState 等
-            // 我们通过一个立即执行的异步函数来包裹
-            const wrappedCode = `
-                (async function() {
-                    try {
-                        ${code}
-                    } catch(e) {
-                        console.error("Error executing ${url}:", e);
-                        const errDiv = document.createElement('div');
-                        errDiv.style.cssText = "position:fixed;bottom:10px;left:10px;background:red;color:white;padding:5px;z-index:9999999;";
-                        errDiv.innerText = "Script Error: " + e.message;
-                        document.body.appendChild(errDiv);
-                    }
-                })();
+        try {
+            // CSS
+            const css = Cache.get('style.css');
+            // 增加霸道样式覆盖
+            const overrideCss = `
+                #psg-app-container {
+                    position: fixed !important; top: 0 !important; left: 0 !important;
+                    width: 100vw !important; height: 100vh !important;
+                    z-index: 2147483647 !important; background: #fff !important;
+                    overflow: hidden !important; display: block !important;
+                }
             `;
+            const style = document.createElement('style');
+            style.textContent = css + overrideCss;
+            document.head.appendChild(style);
+
+            // HTML
+            const html = Cache.get('index.html');
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
             
-            const script = document.createElement('script');
-            script.textContent = wrappedCode;
-            document.body.appendChild(script);
-        };
+            const appContainer = document.createElement('div');
+            appContainer.id = 'psg-app-container';
+            
+            const exitBtn = document.createElement('div');
+            exitBtn.innerHTML = "×";
+            exitBtn.style.cssText = "position:absolute; top:10px; right:10px; z-index:2147483648; width:30px; height:30px; background:rgba(0,0,0,0.5); color:white; border-radius:50%; display:flex; justify-content:center; align-items:center; cursor:pointer; font-weight:bold;";
+            exitBtn.onclick = () => { document.body.removeChild(appContainer); };
+            appContainer.appendChild(exitBtn);
 
-        LOG("Loading Core...");
-        await executeScript(`${REPO_ROOT}/js/rpg-core.js`);
-        PROGRESS(70);
-        
-        LOG("Loading Media...");
-        await executeScript(`${REPO_ROOT}/js/music-player.js`);
-        PROGRESS(85);
-        
-        LOG("Loading Main Logic...");
-        await executeScript(`${REPO_ROOT}/js/main.js`);
-        PROGRESS(100);
-        
-        LOG("Launch Complete!", "success");
-        
-        // 移除加载器 (稍微延迟)
-        setTimeout(() => { if(LOADER) LOADER.parentElement.remove(); }, 1000);
+            Array.from(doc.body.childNodes).forEach(node => {
+                if (node.tagName !== 'SCRIPT') appContainer.appendChild(node.cloneNode(true));
+            });
+            document.body.appendChild(appContainer);
 
-    } catch (e) {
-        ERROR(e.message);
-        // 如果出错，不要移除加载器，让用户看到错误
-    }
+            // JS (IIFE Protected)
+            const scripts = ['rpg-core.js', 'music-player.js', 'main.js'];
+            for (const key of scripts) {
+                const code = Cache.get(key);
+                const script = document.createElement('script');
+                // Wrap in IIFE but allow window access
+                script.textContent = `(async function(){ try{ ${code} }catch(e){console.error("[PSG] Script Error:",e)} })();`;
+                document.body.appendChild(script);
+            }
+
+            LOG("Launched!", "success");
+            setTimeout(() => { if(UI.loader) UI.loader.parentElement.remove(); }, 800);
+
+        } catch (e) {
+            throw new Error("Injection failed: " + e.message);
+        }
+    };
+
+    // === 主流程 ===
+    const main = async () => {
+        try {
+            const cachedVersion = localStorage.getItem(CONFIG.VERSION_KEY);
+            const hasCache = Cache.hasAll();
+
+            if (!hasCache || cachedVersion !== CONFIG.CURRENT_VERSION) {
+                if (cachedVersion && cachedVersion !== CONFIG.CURRENT_VERSION) {
+                    LOG(`Updating: v${cachedVersion} -> v${CONFIG.CURRENT_VERSION}`);
+                } else {
+                    LOG("First time setup...");
+                }
+                await downloadResources();
+            } else {
+                LOG("Cache hit! Starting offline mode...");
+                PROGRESS(100);
+            }
+
+            await injectFromCache();
+
+        } catch (e) {
+            ERROR(e.message);
+            UI.btn.style.display = 'block'; // Show force update button
+        }
+    };
+
+    // 绑定强制更新按钮
+    UI.btn.onclick = async () => {
+        Cache.clear();
+        UI.btn.style.display = 'none';
+        ERROR(""); // Clear error
+        await main();
+    };
+
+    await main();
+
 })();
 </script>
 </body>
